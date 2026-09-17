@@ -80,7 +80,8 @@ Write-Host "仓库地址: https://github.com/$login/$RepoName" -ForegroundColor 
 if (-not $SkipRelease) {
     $apkDir = Join-Path $Ws 'app\build\app\outputs\flutter-apk'
     $assets = @()
-    foreach ($f in 'app-release.apk', 'app-debug.apk') {
+    # Release 附件只放发布包：debug 包体积大且不适合对外分发
+    foreach ($f in 'app-release.apk') {
         $p = Join-Path $apkDir $f
         if (Test-Path $p) { $assets += $p }
     }

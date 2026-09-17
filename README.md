@@ -98,13 +98,17 @@ flutter pub get
 flutter build apk --release        # 产物：build/app/outputs/flutter-apk/app-release.apk
 ```
 
-或使用仓库内脚本（Windows）：
+or 使用仓库内脚本（Windows）：
 
 ```powershell
 pwsh tools/build-apk.ps1            # debug 包
 pwsh tools/build-apk.ps1 -Release   # release 包
 pwsh tools/run-on-emulator.ps1      # 启动雷电模拟器 + 安装 + 启动 + 截图
 ```
+
+> **关于字体**：中文字体「霞鹜文楷 Light」有 26MB，超过 GitHub 网页上传的单文件 25MB 限制。
+> 用 git 克隆的仓库里**已包含**该字体，无需处理；如果你拿到的是不含字体的源码包，
+> 先执行一次 `pwsh tools/fetch-font.ps1` 补齐（它会自动走国内可用镜像）。
 
 ### 配置 API
 
