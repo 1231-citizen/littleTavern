@@ -1,0 +1,33 @@
+name: tavern
+description: "小酒馆 —— 与角色卡对话的类酒馆应用（日系清新风）"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # 本机持久化：角色卡 / 会话 / 用户设定 / API 配置
+  shared_preferences: ^2.3.2
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # 霞鹜文楷 Light：单一极轻字重的中文字体，
+  # 天然满足「只用 font-light / font-extralight」的风格约束。
+  fonts:
+    - family: WenKai
+      fonts:
+        - asset: assets/fonts/LXGWWenKai-Light.ttf
+          weight: 300
