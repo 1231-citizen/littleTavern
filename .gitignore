@@ -1,0 +1,18 @@
+# 构建缓存（体积大，不入库）
+.pub-cache/
+.gradle/
+app/build/
+app/.dart_tool/
+app/.flutter-plugins-dependencies
+app/android/.gradle/
+app/android/local.properties
+
+# 工具链安装日志与截图
+tools/install.log
+tools/shots/
+tools/seed.xml
+
+# 编辑器
+.idea/
+*.iml
+dist/
