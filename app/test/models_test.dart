@@ -9,6 +9,7 @@ void main() {
         persona: '温泉旅馆的老板娘，语气温和',
         appearance: '墨色长发，藏青和服',
         avatar: '🍁',
+        avatarImage: '/tmp/avatar.jpg',
         colorIndex: 2,
       );
       final back = CharacterCard.fromJson(c.toJson());
@@ -16,6 +17,7 @@ void main() {
       expect(back.persona, contains('老板娘'));
       expect(back.appearance, contains('和服'));
       expect(back.avatar, '🍁');
+      expect(back.avatarImage, '/tmp/avatar.jpg');
       expect(back.colorIndex, 2);
       expect(back.id, c.id);
     });
@@ -74,14 +76,57 @@ void main() {
   });
 
   group('会话', () {
-    test('会话与角色一一对应并可序列化', () {
-      final s = ChatSession(characterId: 'c1', world: '明治四十四年的秋末');
+    test('会话记录角色、世界与消息，可序列化', () {
+      final w = WorldCard(name: '红叶亭', content: '明治四十四年的秋末');
+      final s = ChatSession(characterId: 'c1', worldId: w.id);
       s.messages.add(ChatMessage(role: MsgRole.user, content: '有人在吗？'));
       final back = ChatSession.fromJson(s.toJson());
       expect(back.characterId, 'c1');
-      expect(back.world, contains('明治'));
+      expect(back.worldId, w.id);
       expect(back.messages.length, 1);
       expect(back.messages.first.content, '有人在吗？');
+      expect(back.title, '有人在吗？');
+    });
+
+    test('旧版把世界背景存在会话里的数据可以读出来', () {
+      final legacy = <String, dynamic>{
+        'id': 'c1',
+        'characterId': 'c1',
+        'world': '明治四十四年的秋末',
+        'messages': <dynamic>[],
+        'updatedAt': DateTime.now().toIso8601String(),
+      };
+      final s = ChatSession.fromJson(legacy);
+      expect(s.legacyWorld, contains('明治'));
+      expect(s.worldId, isNull);
+    });
+
+    test('一个角色可以有多段对话，各自带时间', () {
+      final a = ChatSession(characterId: 'c1');
+      final b = ChatSession(characterId: 'c1');
+      expect(a.id, isNot(b.id));
+      expect(a.title, '空白对话');
+    });
+  });
+
+  group('世界背景', () {
+    test('名称与正文可 JSON 往返', () {
+      final w = WorldCard(name: '红叶亭', content: '山间温泉旅馆，秋末多雾。');
+      final back = WorldCard.fromJson(w.toJson());
+      expect(back.displayName, '红叶亭');
+      expect(back.content, contains('温泉'));
+      expect(back.excerpt, contains('山间'));
+    });
+  });
+
+  group('用户设定', () {
+    test('可以有好几套，且带得上头像照片', () {
+      final u = UserProfile(name: '阿雪', persona: '常客', avatarImage: '/tmp/a.jpg');
+      final back = UserProfile.fromJson(u.toJson());
+      expect(back.id, u.id);
+      expect(back.displayName, '阿雪');
+      expect(back.avatarImage, '/tmp/a.jpg');
+      expect(UserProfile(name: '  ').displayName, '旅人');
     });
   });
 }

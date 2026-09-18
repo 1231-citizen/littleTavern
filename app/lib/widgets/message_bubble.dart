@@ -20,6 +20,7 @@ class MessageBubble extends StatelessWidget {
   final VoidCallback onLongPress;
   final VoidCallback onAvatarTap;
   final VoidCallback onToggleReasoning;
+  final VoidCallback onEditReasoning;
 
   const MessageBubble({
     super.key,
@@ -30,6 +31,7 @@ class MessageBubble extends StatelessWidget {
     required this.onLongPress,
     required this.onAvatarTap,
     required this.onToggleReasoning,
+    required this.onEditReasoning,
     this.streaming = false,
     this.statusText = '',
   });
@@ -47,6 +49,8 @@ class MessageBubble extends StatelessWidget {
 
   String get _avatar => _isUser ? user.avatar : (card?.avatar ?? '🌸');
 
+  String? get _avatarImage => _isUser ? user.avatarImage : card?.avatarImage;
+
   int get _colorIndex => _isUser ? user.colorIndex : (card?.colorIndex ?? 0);
 
   bool get _pending => streaming && m.content.isEmpty && !m.hasReasoning;
@@ -61,7 +65,7 @@ class MessageBubble extends StatelessWidget {
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: maxW),
             child: AnimatedContainer(
-              duration: JF.dur,
+              duration: JF.durFast,
               curve: JF.ease,
               decoration: _bubbleDecoration(),
               child: Material(
@@ -142,7 +146,13 @@ class MessageBubble extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
-        JFAvatar(emoji: _avatar, colorIndex: _colorIndex, size: 30, onTap: onAvatarTap),
+        JFAvatar(
+          emoji: _avatar,
+          imagePath: _avatarImage,
+          colorIndex: _colorIndex,
+          size: 30,
+          onTap: onAvatarTap,
+        ),
         const SizedBox(width: 8),
         Flexible(
           child: Text(
@@ -180,6 +190,22 @@ class MessageBubble extends StatelessWidget {
               const Icon(Icons.auto_awesome_outlined, size: 12, color: JF.inkSecond),
               const SizedBox(width: 6),
               Text('思维链', style: JF.tiny.copyWith(color: JF.inkSecond)),
+              const Spacer(),
+              // 思维链也可以像对话正文一样改
+              Semantics(
+                button: true,
+                label: '修改思维链',
+                child: InkWell(
+                  onTap: onEditReasoning,
+                  borderRadius: BorderRadius.circular(10),
+                  splashColor: Colors.transparent,
+                  highlightColor: JF.mint.withValues(alpha: 0.10),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Icon(Icons.edit_outlined, size: 13, color: JF.inkSecond),
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 7),

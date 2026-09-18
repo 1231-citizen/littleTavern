@@ -2,7 +2,7 @@ name: tavern
 description: "小酒馆 —— 与角色卡对话的类酒馆应用（日系清新风）"
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
   sdk: ^3.13.3

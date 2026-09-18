@@ -9,23 +9,22 @@ import '../widgets/common.dart';
 import '../widgets/page.dart';
 
 /// ============================================================
-///  角色卡编辑 —— 人物名称 / 人物设定 / 人物外在形象
-///  （对话必须先有角色卡）
+///  用户设定编辑 —— 一套「我」：名称 / 设定 / 形象
+///  与角色卡一样可以有好几套，随时切换
 /// ============================================================
-class CharacterEditScreen extends StatefulWidget {
+class UserEditScreen extends StatefulWidget {
   final AppStore store;
-  final CharacterCard? card;
+  final UserProfile? profile;
 
-  const CharacterEditScreen({super.key, required this.store, this.card});
+  const UserEditScreen({super.key, required this.store, this.profile});
 
   @override
-  State<CharacterEditScreen> createState() => _CharacterEditScreenState();
+  State<UserEditScreen> createState() => _UserEditScreenState();
 }
 
-class _CharacterEditScreenState extends State<CharacterEditScreen> {
+class _UserEditScreenState extends State<UserEditScreen> {
   late final TextEditingController _name;
   late final TextEditingController _persona;
-  late final TextEditingController _appearance;
   late final TextEditingController _customAvatar;
 
   late String _avatar;
@@ -34,19 +33,19 @@ class _CharacterEditScreenState extends State<CharacterEditScreen> {
   bool _isNew = false;
   bool _picking = false;
 
-  bool get _isExisting => widget.card != null && !_isNew;
+  bool get _isExisting => widget.profile != null && !_isNew;
+  bool get _canDelete => _isExisting && widget.store.userProfiles.length > 1;
 
   @override
   void initState() {
     super.initState();
-    final c = widget.card;
-    _isNew = c == null;
-    _name = TextEditingController(text: c?.name ?? '');
-    _persona = TextEditingController(text: c?.persona ?? '');
-    _appearance = TextEditingController(text: c?.appearance ?? '');
-    _avatar = c?.avatar ?? '🌸';
-    _avatarImage = c?.avatarImage;
-    _color = c?.colorIndex ?? 0;
+    final u = widget.profile;
+    _isNew = u == null;
+    _name = TextEditingController(text: u?.name ?? '');
+    _persona = TextEditingController(text: u?.persona ?? '');
+    _avatar = u?.avatar ?? '🍃';
+    _avatarImage = u?.avatarImage;
+    _color = u?.colorIndex ?? widget.store.userProfiles.length;
     _customAvatar = TextEditingController();
   }
 
@@ -54,23 +53,20 @@ class _CharacterEditScreenState extends State<CharacterEditScreen> {
   void dispose() {
     _name.dispose();
     _persona.dispose();
-    _appearance.dispose();
     _customAvatar.dispose();
     super.dispose();
   }
 
-  CharacterCard _build() {
-    final c = widget.card?.clone() ?? CharacterCard();
-    c.name = _name.text.trim();
-    c.persona = _persona.text.trim();
-    c.appearance = _appearance.text.trim();
-    c.avatar = _avatar;
-    c.avatarImage = _avatarImage;
-    c.colorIndex = _color;
-    return c;
+  UserProfile _build() {
+    final u = widget.profile?.clone() ?? UserProfile();
+    u.name = _name.text.trim().isEmpty ? '旅人' : _name.text.trim();
+    u.persona = _persona.text.trim();
+    u.avatar = _avatar;
+    u.avatarImage = _avatarImage;
+    u.colorIndex = _color;
+    return u;
   }
 
-  /// 从相册里选一张照片当头像
   Future<void> _pickPhoto() async {
     if (_picking) return;
     setState(() => _picking = true);
@@ -86,112 +82,107 @@ class _CharacterEditScreenState extends State<CharacterEditScreen> {
   }
 
   Future<bool> _save({bool activate = false}) async {
-    if (_name.text.trim().isEmpty) {
-      jfToast(context, '请先填写人物名称');
-      return false;
-    }
-    final card = _build();
-    await widget.store.upsertCard(card);
-    if (activate) await widget.store.setActiveCharacter(card.id);
+    final profile = _build();
+    await widget.store.upsertUserProfile(profile);
+    if (activate) await widget.store.setActiveUser(profile.id);
     return true;
   }
 
   Future<void> _saveOnly() async {
     if (await _save()) {
       if (mounted) {
-        jfToast(context, '角色卡已保存');
+        jfToast(context, '用户设定已保存');
         Navigator.of(context).maybePop();
       }
     }
   }
 
-  Future<void> _saveAndChat() async {
+  Future<void> _saveAndUse() async {
     if (await _save(activate: true)) {
       if (mounted) {
-        Navigator.of(context).popUntil((r) => r.isFirst);
+        jfToast(context, '已切换到「${_build().displayName}」');
+        Navigator.of(context).maybePop();
       }
     }
   }
 
   Future<void> _delete() async {
-    final card = widget.card;
-    if (card == null) return;
+    final u = widget.profile;
+    if (u == null) return;
     final ok = await showJFConfirm(
       context,
-      title: '删除角色卡',
-      message: '「${card.name}」及其全部对话记录都会被删除，且无法恢复。',
+      title: '删除这套用户设定',
+      message: '「${u.displayName}」会被删除，且无法恢复。',
       okLabel: '删除',
       danger: true,
     );
     if (!ok) return;
-    await widget.store.deleteCard(card.id);
+    await widget.store.deleteUserProfile(u.id);
     if (mounted) {
       jfToast(context, '已删除');
-      Navigator.of(context).popUntil((r) => r.isFirst);
+      Navigator.of(context).maybePop();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return JFPage(
-      title: _isNew ? '创建角色卡' : '编辑角色卡',
-      subtitle: _isExisting ? '人物设定与外在形象' : '填好三要素即可开始对话',
+      title: _isNew ? '新增用户设定' : '编辑用户设定',
+      subtitle: _isExisting ? '你的名称与设定' : '你就是故事里的这个人',
       trailing: JFButton(label: '保存', primary: true, dense: true, onPressed: _saveOnly),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ---------- 预览 ----------
           Center(
-            child: Column(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 JFAvatar(
                   emoji: _avatar,
                   imagePath: _avatarImage,
                   colorIndex: _color,
-                  size: 76,
+                  size: 56,
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  _name.text.trim().isEmpty ? '未命名角色' : _name.text.trim(),
-                  style: JF.h1,
+                const SizedBox(width: 18),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _name.text.trim().isEmpty ? '旅人' : _name.text.trim(),
+                      style: JF.h2,
+                    ),
+                    const SizedBox(height: 6),
+                    Text('这将显示在你的每条对话旁', style: JF.tiny),
+                  ],
                 ),
               ],
             ),
           ),
-          const JFMa(38),
+          const JFMa(40),
           Divider(height: 0.8, thickness: 0.8, color: JF.hairlineFaint),
           const JFMa(34),
 
           JFField(
-            label: '人物名称',
-            hint: '角色的名字',
+            label: '你的名称',
+            hint: '旅人',
             controller: _name,
             onChanged: (_) => setState(() {}),
           ),
-          const JFMa(32),
+          const JFMa(30),
           JFField(
-            label: '人物设定',
-            hint: '性格、来历、说话方式、与用户的关系…',
+            label: '你的设定',
+            hint: '身份、性格、与角色的关系…',
             controller: _persona,
-            maxLines: 10,
-            minLines: 6,
-            keyboardType: TextInputType.multiline,
-          ),
-          const JFMa(32),
-          JFField(
-            label: '人物外在形象',
-            hint: '身高体型、发型发色、衣着、随身物件、气质…',
-            controller: _appearance,
             maxLines: 8,
-            minLines: 4,
+            minLines: 5,
             keyboardType: TextInputType.multiline,
           ),
 
-          const JFMa(48),
-          const JFSectionLabel('人物形象'),
+          const JFMa(46),
+          const JFSectionLabel('形象'),
           EmojiPicker(
             selected: _avatar,
-            emojis: kEmojiSet5,
             onChanged: (v) => setState(() {
               _avatar = v;
               _customAvatar.clear();
@@ -206,7 +197,7 @@ class _CharacterEditScreenState extends State<CharacterEditScreen> {
           ),
           const JFMa(20),
           JFField(
-            label: '或用符号作为形象',
+            label: '或自定义一个符号',
             hint: '任意 emoji 或单个汉字',
             controller: _customAvatar,
             onChanged: (v) {
@@ -214,45 +205,41 @@ class _CharacterEditScreenState extends State<CharacterEditScreen> {
               if (t.isNotEmpty) setState(() => _avatar = t);
             },
           ),
-          const JFMa(20),
-          Text(
-            _avatarImage == null
-                ? '也可以添加一张照片当头像。'
-                : '已选好照片。照片只保存在本机，不会上传。',
-            style: JF.tiny.copyWith(height: 1.8),
-          ),
 
-          const JFMa(52),
+          const JFMa(38),
+          const JFSectionLabel('色调'),
+          ColorPicker(selected: _color, onChanged: (i) => setState(() => _color = i)),
+
+          const JFMa(48),
           JFButton(
-            label: _isExisting ? '保存并开始对话' : '创建并开始对话',
+            label: _isExisting ? '保存并使用这套设定' : '创建并使用这套设定',
             primary: true,
             expand: true,
-            icon: Icons.chat_bubble_outline,
-            onPressed: _saveAndChat,
+            icon: Icons.check,
+            onPressed: _saveAndUse,
           ),
           const JFMa(12),
           JFButton(label: '仅保存', expand: true, onPressed: _saveOnly),
-          if (_isExisting) ...[
+          if (_canDelete) ...[
             const JFMa(12),
             JFButton(
-              label: '删除这张角色卡',
+              label: '删除这套设定',
               expand: true,
               icon: Icons.delete_outline,
               onPressed: _delete,
             ),
           ],
 
-          const JFMa(40),
+          const JFMa(24),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Botanical(size: 46, variant: 0, color: JF.mint),
-              const SizedBox(width: 16),
+              const Botanical(size: 44, variant: 3, color: JF.powder),
+              const SizedBox(width: 14),
               Expanded(
                 child: Text(
-                  '这三项会作为「角色卡」注入每次请求：\n'
-                  '人物名称决定称谓，人物设定决定性格与语气，'
-                  '外在形象让描写有具体的画面。',
+                  '用户设定可以有好几套，像换角色卡一样随时切换。'
+                  '因此你可以用不同的身份，走进不同的故事。',
                   style: JF.tiny.copyWith(height: 1.9),
                 ),
               ),

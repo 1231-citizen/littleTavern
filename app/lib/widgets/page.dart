@@ -229,18 +229,27 @@ const List<String> kEmojiSet = <String>[
   '🏮', '🗡️', '🪶', '🌊', '🍂', '🫧', '🧧', '🎋',
 ];
 
+/// 角色卡的符号形象（更改要求：由一整排减至五个）
+const List<String> kEmojiSet5 = <String>['🌸', '🍃', '🌙', '🍵', '🕊️'];
+
 class EmojiPicker extends StatelessWidget {
   final String selected;
   final ValueChanged<String> onChanged;
+  final List<String> emojis;
 
-  const EmojiPicker({super.key, required this.selected, required this.onChanged});
+  const EmojiPicker({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+    this.emojis = kEmojiSet,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Wrap(
       spacing: 9,
       runSpacing: 9,
-      children: kEmojiSet.map((e) {
+      children: emojis.map((e) {
         final on = e == selected;
         return GestureDetector(
           onTap: () => onChanged(e),
@@ -263,6 +272,45 @@ class EmojiPicker extends StatelessWidget {
           ),
         );
       }).toList(),
+    );
+  }
+}
+
+/// ================================================================ 照片头像
+/// 与符号形象并列的一栏：选一张照片当头像，或把照片去掉。
+class PhotoPicker extends StatelessWidget {
+  final String? imagePath;
+  final VoidCallback onPick;
+  final VoidCallback onClear;
+  final bool busy;
+
+  const PhotoPicker({
+    super.key,
+    required this.imagePath,
+    required this.onPick,
+    required this.onClear,
+    this.busy = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final has = imagePath != null && imagePath!.trim().isNotEmpty;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        JFButton(
+          label: busy
+              ? '正在打开相册…'
+              : (has ? '换一张照片' : '从相册选择照片'),
+          icon: Icons.photo_camera_back_outlined,
+          dense: true,
+          onPressed: busy ? null : onPick,
+        ),
+        if (has) ...[
+          const SizedBox(width: 10),
+          JFButton(label: '移除照片', dense: true, onPressed: busy ? null : onClear),
+        ],
+      ],
     );
   }
 }

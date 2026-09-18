@@ -9,21 +9,23 @@ import 'character_edit_screen.dart';
 
 /// ============================================================
 ///  酒馆人物管理 —— 管理 / 创建角色卡
+///  点击一行即切换到这个人物，铅笔进编辑页，长按删除
 /// ============================================================
 class CharacterListScreen extends StatelessWidget {
   final AppStore store;
   const CharacterListScreen({super.key, required this.store});
 
-  Future<void> _openEdit(BuildContext context, CharacterCard card) async {
+  Future<void> _openEdit(BuildContext context, CharacterCard? card) async {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => CharacterEditScreen(store: store, card: card)),
     );
   }
 
-  Future<void> _openNew(BuildContext context) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => CharacterEditScreen(store: store)),
-    );
+  Future<void> _use(BuildContext context, CharacterCard card) async {
+    await store.setActiveCharacter(card.id);
+    if (!context.mounted) return;
+    jfToast(context, '已切换到「${card.name}」');
+    Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
   Future<void> _delete(BuildContext context, CharacterCard card) async {
@@ -58,7 +60,7 @@ class CharacterListScreen extends StatelessWidget {
                 label: '创建第一张角色卡',
                 primary: true,
                 icon: Icons.add,
-                onPressed: () => _openNew(context),
+                onPressed: () => _openEdit(context, null),
               ),
             ),
           );
@@ -66,7 +68,7 @@ class CharacterListScreen extends StatelessWidget {
 
         return JFPage(
           title: '酒馆人物管理',
-          subtitle: '${cards.length} 位角色 · 长按可删除',
+          subtitle: '${cards.length} 位角色 · 点击即切换',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -75,27 +77,18 @@ class CharacterListScreen extends StatelessWidget {
                 JFRow(
                   leading: JFAvatar(
                     emoji: cards[i].avatar,
+                    imagePath: cards[i].avatarImage,
                     colorIndex: cards[i].colorIndex,
                     size: 42,
                   ),
                   title: cards[i].name,
                   subtitle: cards[i].personaExcerpt,
-                  onTap: () => _openEdit(context, cards[i]),
+                  onTap: () => _use(context, cards[i]),
                   onLongPress: () => _delete(context, cards[i]),
-                  trailing: cards[i].id == store.activeCharacterId
-                      ? Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: JF.mint.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: JF.mint.withValues(alpha: 0.45),
-                              width: 0.8,
-                            ),
-                          ),
-                          child: Text('当前', style: JF.tiny.copyWith(fontSize: 10, color: JF.inkBody)),
-                        )
-                      : const Icon(Icons.chevron_right, size: 16, color: JF.muted),
+                  trailing: jfRowTail(
+                    active: cards[i].id == store.activeCharacterId,
+                    onEdit: () => _openEdit(context, cards[i]),
+                  ),
                 ),
               ],
               const JFMa(44),
@@ -104,11 +97,12 @@ class CharacterListScreen extends StatelessWidget {
                 primary: true,
                 expand: true,
                 icon: Icons.add,
-                onPressed: () => _openNew(context),
+                onPressed: () => _openEdit(context, null),
               ),
               const JFMa(26),
               Text(
-                '角色卡保存在本机。切换角色卡即切换对话，历史记录互不干扰。',
+                '角色卡保存在本机。点击某一行即切换到这个人物，'
+                '每个角色各自保留自己的历史对话；铅笔可以修改它。',
                 style: JF.tiny.copyWith(height: 1.9),
               ),
             ],

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -19,6 +21,9 @@ Color avatarColor(int i) => kAvatarPalette[i.abs() % kAvatarPalette.length];
 // ================================================================ 头像
 class JFAvatar extends StatelessWidget {
   final String emoji;
+
+  /// 本地照片路径；有照片时优先显示照片
+  final String? imagePath;
   final int colorIndex;
   final double size;
   final VoidCallback? onTap;
@@ -27,6 +32,7 @@ class JFAvatar extends StatelessWidget {
   const JFAvatar({
     super.key,
     required this.emoji,
+    this.imagePath,
     this.colorIndex = 0,
     this.size = 34,
     this.onTap,
@@ -37,7 +43,7 @@ class JFAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = avatarColor(colorIndex);
     final box = AnimatedContainer(
-      duration: JF.dur,
+      duration: JF.durFast,
       curve: JF.ease,
       width: size,
       height: size,
@@ -47,15 +53,8 @@ class JFAvatar extends StatelessWidget {
         shape: BoxShape.circle,
         border: ring ? Border.all(color: c.withValues(alpha: 0.45), width: 0.8) : null,
       ),
-      child: Text(
-        emoji,
-        style: TextStyle(
-          fontSize: size * 0.46,
-          height: 1.0,
-          fontFamily: JF.family,
-          fontFamilyFallback: JF.fallback,
-        ),
-      ),
+      clipBehavior: Clip.antiAlias,
+      child: _face(),
     );
     if (onTap == null) return box;
     return Semantics(
@@ -68,6 +67,97 @@ class JFAvatar extends StatelessWidget {
       ),
     );
   }
+
+  Widget _face() {
+    final p = imagePath;
+    if (p == null || p.trim().isEmpty) return _glyph();
+    return Image.file(
+      File(p),
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      // 文件被清理掉时安静地退回符号形象
+      errorBuilder: (_, _, _) => _glyph(),
+    );
+  }
+
+  Widget _glyph() => Text(
+        emoji,
+        style: TextStyle(
+          fontSize: size * 0.46,
+          height: 1.0,
+          fontFamily: JF.family,
+          fontFamilyFallback: JF.fallback,
+        ),
+      );
+}
+
+// ================================================================ 「当前」标记
+class JFBadge extends StatelessWidget {
+  final String text;
+  const JFBadge(this.text, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: JF.mint.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: JF.mint.withValues(alpha: 0.45), width: 0.8),
+      ),
+      child: Text(text, style: JF.tiny.copyWith(fontSize: 10, color: JF.inkBody)),
+    );
+  }
+}
+
+// ================================================================ 铅笔（列表行里的编辑入口）
+class JFEditIconButton extends StatelessWidget {
+  final VoidCallback onTap;
+  final String semanticLabel;
+
+  const JFEditIconButton({super.key, required this.onTap, this.semanticLabel = '编辑'});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        splashColor: Colors.transparent,
+        highlightColor: JF.sky.withValues(alpha: 0.06),
+        child: const Padding(
+          padding: EdgeInsets.all(8),
+          child: Icon(Icons.edit_outlined, size: 16, color: JF.inkSecond),
+        ),
+      ),
+    );
+  }
+}
+
+/// 列表里那一行右侧的统一尾巴：当前标记 + 编辑铅笔
+Widget jfRowTail({required bool active, required VoidCallback onEdit, String activeLabel = '当前'}) {
+  return Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (active) ...[
+        JFBadge(activeLabel),
+        const SizedBox(width: 6),
+      ],
+      JFEditIconButton(onTap: onEdit),
+    ],
+  );
+}
+
+/// 列表里的时间标签：今天只显示时分，其余显示月/日
+String jfTimeLabel(DateTime t) {
+  final now = DateTime.now();
+  final sameDay = t.year == now.year && t.month == now.month && t.day == now.day;
+  final hh = t.hour.toString().padLeft(2, '0');
+  final mm = t.minute.toString().padLeft(2, '0');
+  return sameDay ? '$hh:$mm' : '${t.month}/${t.day} $hh:$mm';
 }
 
 // ================================================================ 按钮
@@ -366,10 +456,15 @@ Future<T?> showJFSheet<T>(
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     barrierColor: JF.ink.withValues(alpha: 0.18),
+    // 开合稍快一点：改对话是高频动作，等太久会打断节奏
+    sheetAnimationStyle: const AnimationStyle(
+      duration: JF.durFast,
+      reverseDuration: JF.durFast,
+    ),
     builder: (ctx) {
       final h = MediaQuery.of(ctx).size.height * maxHeightFactor;
       return AnimatedPadding(
-        duration: JF.dur,
+        duration: JF.durFast,
         curve: JF.ease,
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
         child: Container(

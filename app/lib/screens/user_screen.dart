@@ -2,155 +2,97 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../store.dart';
-import '../theme/botanical.dart';
 import '../theme/jf.dart';
 import '../widgets/common.dart';
 import '../widgets/page.dart';
+import 'user_edit_screen.dart';
 
 /// ============================================================
-///  全局用户设定 —— 用户在当前对话中的名称与设定
+///  用户设定管理 —— 与「酒馆人物管理」同一套用法：
+///  点击一行即切换，铅笔进编辑页，长按删除
 /// ============================================================
-class UserScreen extends StatefulWidget {
+class UserScreen extends StatelessWidget {
   final AppStore store;
   const UserScreen({super.key, required this.store});
 
-  @override
-  State<UserScreen> createState() => _UserScreenState();
-}
-
-class _UserScreenState extends State<UserScreen> {
-  late final TextEditingController _name;
-  late final TextEditingController _persona;
-  late String _avatar;
-  late int _color;
-  late final TextEditingController _customAvatar;
-
-  @override
-  void initState() {
-    super.initState();
-    final u = widget.store.user;
-    _name = TextEditingController(text: u.name);
-    _persona = TextEditingController(text: u.persona);
-    _avatar = u.avatar;
-    _color = u.colorIndex;
-    _customAvatar = TextEditingController();
+  Future<void> _openEdit(BuildContext context, UserProfile? profile) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => UserEditScreen(store: store, profile: profile)),
+    );
   }
 
-  @override
-  void dispose() {
-    _name.dispose();
-    _persona.dispose();
-    _customAvatar.dispose();
-    super.dispose();
+  Future<void> _use(BuildContext context, UserProfile u) async {
+    await store.setActiveUser(u.id);
+    if (context.mounted) jfToast(context, '已切换到「${u.displayName}」');
   }
 
-  Future<void> _save() async {
-    await widget.store.updateUser(UserProfile(
-      name: _name.text.trim().isEmpty ? '旅人' : _name.text.trim(),
-      persona: _persona.text,
-      avatar: _avatar,
-      colorIndex: _color,
-    ));
-    if (mounted) {
-      jfToast(context, '用户设定已保存');
-      Navigator.of(context).maybePop();
+  Future<void> _delete(BuildContext context, UserProfile u) async {
+    if (store.userProfiles.length <= 1) {
+      jfToast(context, '至少要留一套用户设定');
+      return;
     }
+    final ok = await showJFConfirm(
+      context,
+      title: '删除这套用户设定',
+      message: '「${u.displayName}」会被删除，且无法恢复。',
+      okLabel: '删除',
+      danger: true,
+    );
+    if (!ok) return;
+    await store.deleteUserProfile(u.id);
+    if (context.mounted) jfToast(context, '已删除「${u.displayName}」');
   }
 
   @override
   Widget build(BuildContext context) {
-    return JFPage(
-      title: '全局用户设定',
-      subtitle: '你在故事中的身份',
-      trailing: JFButton(label: '保存', primary: true, dense: true, onPressed: _save),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 预览
-          Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                JFAvatar(emoji: _avatar, colorIndex: _color, size: 56),
-                const SizedBox(width: 18),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _name.text.trim().isEmpty ? '旅人' : _name.text.trim(),
-                      style: JF.h2,
-                    ),
-                    const SizedBox(height: 6),
-                    Text('这将显示在你的每条对话旁', style: JF.tiny),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const JFMa(40),
-          Divider(height: 0.8, thickness: 0.8, color: JF.hairlineFaint),
-          const JFMa(34),
+    return AnimatedBuilder(
+      animation: store,
+      builder: (context, _) {
+        final list = store.userProfiles;
 
-          JFField(
-            label: '你的名称',
-            hint: '旅人',
-            controller: _name,
-            onChanged: (_) => setState(() {}),
-          ),
-          const JFMa(30),
-          JFField(
-            label: '你的设定',
-            hint: '身份、性格、与角色的关系…',
-            controller: _persona,
-            maxLines: 8,
-            minLines: 5,
-            keyboardType: TextInputType.multiline,
-          ),
-
-          const JFMa(46),
-          const JFSectionLabel('形象'),
-          EmojiPicker(
-            selected: _avatar,
-            onChanged: (v) => setState(() {
-              _avatar = v;
-              _customAvatar.clear();
-            }),
-          ),
-          const JFMa(20),
-          JFField(
-            label: '或自定义一个符号',
-            hint: '任意 emoji 或单个汉字',
-            controller: _customAvatar,
-            onChanged: (v) {
-              final t = v.trim();
-              if (t.isNotEmpty) setState(() => _avatar = t);
-            },
-          ),
-
-          const JFMa(38),
-          const JFSectionLabel('色调'),
-          ColorPicker(selected: _color, onChanged: (i) => setState(() => _color = i)),
-
-          const JFMa(48),
-          JFButton(label: '保存用户设定', primary: true, expand: true, onPressed: _save),
-          const JFMa(24),
-          Row(
+        return JFPage(
+          title: '全局用户设定',
+          subtitle: '${list.length} 套设定 · 点击即切换',
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Botanical(size: 44, variant: 3, color: JF.powder),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  '用户设定是全局的：切换角色卡时依然沿用，'
-                  '因此你可以用同一个人身份，走进不同的故事。',
-                  style: JF.tiny.copyWith(height: 1.9),
+              for (var i = 0; i < list.length; i++) ...[
+                if (i > 0) Divider(height: 0.8, thickness: 0.8, color: JF.hairlineFaint),
+                JFRow(
+                  leading: JFAvatar(
+                    emoji: list[i].avatar,
+                    imagePath: list[i].avatarImage,
+                    colorIndex: list[i].colorIndex,
+                    size: 42,
+                  ),
+                  title: list[i].displayName,
+                  subtitle: list[i].personaExcerpt,
+                  onTap: () => _use(context, list[i]),
+                  onLongPress: () => _delete(context, list[i]),
+                  trailing: jfRowTail(
+                    active: list[i].id == store.activeUserProfileId,
+                    onEdit: () => _openEdit(context, list[i]),
+                  ),
                 ),
+              ],
+              const JFMa(44),
+              JFButton(
+                label: '新增一套用户设定',
+                primary: true,
+                expand: true,
+                icon: Icons.add,
+                onPressed: () => _openEdit(context, null),
+              ),
+              const JFMa(26),
+              Text(
+                '点击某一套设定即切换当前身份，铅笔可以修改它。'
+                '用户设定会注入每次请求，并显示在你的每条对话旁。',
+                style: JF.tiny.copyWith(height: 1.9),
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
